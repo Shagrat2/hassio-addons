@@ -1,9 +1,11 @@
-#ARG BUILD_FROM
-#FROM $BUILD_FROM
-FROM python:3
+ARG BUILD_FROM
+FROM $BUILD_FROM
 
-ENV LANG C.UTF-8
-
+# Install requirements for add-on
+RUN \
+  apk add --no-cache \
+    python3
+    
 RUN python3 -m pip install pyserial
 
 COPY . /srv

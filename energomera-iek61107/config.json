@@ -15,6 +15,10 @@
     "startup": "application",
     "boot": "auto",
     "homeassistant_api": true,
+    "hassio_api": true,
+    "uart": true,
+    "udev": true,
+    "usb": true,
     "options": {
       "serial_mode": "serial",
       "serial": {
