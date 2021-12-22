@@ -28,7 +28,7 @@ class SDSSerial:
         self._ser = serial.Serial()
         self._ser.port = Options["serial"]["port"]
         self._ser.baudrate = 9600
-        self._ser.bytesize = serial.FIVEBITS
+        self._ser.bytesize = serial.SEVENBITS
         self._ser.parity = serial.PARITY_EVEN
         self._ser.stopbits = serial.STOPBITS_ONE
         self._ser.timeout = 0.5
@@ -36,21 +36,20 @@ class SDSSerial:
         self._ser.open()
 
     def close(self):
-        self._soc.close()
+        self._ser.close()
 
     def send(self, a):
-        self._soc.write(a)
+        self._ser.write(a)
 
     def sendReceive(self, req):
         self.send(req)
 
         data = bytearray()
         while True:
-            try:
-                data += self._soc.recv(8)
-            except socket.error:
+            ch = self._ser.read()
+            if len(ch) == 0:
                 break
-
+            data += ch
         return data
 
 
@@ -93,12 +92,12 @@ def device_init():
         logger.critical("Error not init")
         return
 
-    logger.info("Init: ".DevIdent)
+    logger.info("Init: "+DevIdent.decode('UTF-8'))
 
     # mode
     raw = conn.sendReceive(iek61107.readByOne())
     SN = iek61107.parseParamRaw(raw)
-    logger.info("SN: ".SN)
+    logger.info("SN: "+SN[0])
 
 def device_finish():
     logger.info("finish ...")
@@ -107,11 +106,12 @@ def device_finish():
 def device_loop():
     while True:
         # Read sensors
-        fnc = "VOLTA()"
+        params = ["ET0PE()", "VOLTA()", "CURRE()", "POWEP()"]
 
-        raw = conn.sendReceive(iek61107.makePack('R1',fnc))
-        val = iek61107.parseParamRaw(raw)
-        logger.info(fnc+":", val)
+        for fnc in params:
+            raw = conn.sendReceive(iek61107.makePack('R1',fnc))
+            val = iek61107.parseParamRaw(raw)
+            logger.info(fnc+":"+'; '.join(val))
 
         # sleep
         time.sleep(5)
