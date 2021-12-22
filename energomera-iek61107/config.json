@@ -1,50 +1,56 @@
 {
-    "name": "Energomera iek61107",
-    "version": "0.1",
-    "slug": "energomera-iek61107",
-    "description": "Reading readings from the Energomera meter using the iek61107 protocol",
-    "arch": [
-      "aarch64", 
-      "amd64", 
-      "armhf", 
-      "armhf", 
-      "armv7", 
-      "i386"
-    ],
-    "url": "https://github.com/shagrat2/hassio-addons",
-    "startup": "application",
-    "boot": "auto",
-    "homeassistant_api": true,
-    "hassio_api": true,
-    "uart": true,
-    "udev": true,
-    "usb": true,
-    "options": {
-      "serial_mode": "serial",
-      "serial": {
-        "port":  "/dev/ttyUSB0",
-        "baudrate": 9600,
-        "bytesize": 7,
-        "parity": "E",
-        "stopbits": 1
-      },
-      "socket": {
-        "address": "192.168.1.1",
-        "port": 8899
-      }
+  "name": "Energomera iek61107",
+  "version": "dev",
+  "slug": "energomera-iek61107",
+  "description": "Reading readings from the Energomera meter using the iek61107 protocol",
+  "startup": "once",
+  "boot": "manual",
+  "arch": [
+    "aarch64",
+    "amd64",
+    "armhf",
+    "armhf",
+    "armv7",
+    "i386"
+  ],
+  "url": "https://github.com/Shagrat2/hassio-addons",
+  "hassio_api": true,
+  "hassio_role": "default",
+  "homeassistant_api": true,
+  "uart": true,
+  "udev": true,
+  "usb": true,
+  "map": [
+    "config:rw",
+    "share:rw",
+    "backup:rw"
+  ],
+  "options": {
+    "serial_mode": "serial",
+    "serial": {
+      "port":  "/dev/ttyUSB0",
+      "baudrate": 9600,
+      "bytesize": 7,
+      "parity": "E",
+      "stopbits": 1
     },
-    "schema": {
-      "serial_mode": "list(serial|socket)",
-      "serial": {
-        "port":  "str",
-        "baudrate": "int",
-        "bytesize": "int(5,8)",
-        "parity": "list(E|O|N|M|S)",
-        "stopbits": "int(0,3)"
-      },
-      "socket": {
-        "address": "str?",
-        "port": "int?"
-      }
+    "socket": {
+      "address": "192.168.1.1",
+      "port": 8899
+    }
+  },
+  "schema": {
+    "serial_mode": "list(serial|socket)",
+    "serial": {
+      "port":  "str",
+      "baudrate": "int",
+      "bytesize": "int(5,8)",
+      "parity": "list(E|O|N|M|S)",
+      "stopbits": "int(0,3)"
+    },
+    "socket": {
+      "address": "str?",
+      "port": "int?"
     }
   }
+}

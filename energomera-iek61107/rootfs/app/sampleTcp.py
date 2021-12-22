@@ -30,11 +30,11 @@ s.connect((Host, Port))
 s.settimeout(1)
 
 # Init /?!.. -> b'/EKT5CE102Mv01\r\n'
-DevIdent = sendReceive(b'\x2F\x3F\x21\x0D\x0A')
-if len(DevIdent) == 0: 
-    DevIdent = sendReceive(b'\x2F\x3F\x21\x0D\x0A')
+DevIdent = sendReceive(iek61107.initPacket())
+if len(DevIdent) == 0:
+    DevIdent = sendReceive(iek61107.initPacket())
 
-if len(DevIdent) == 0: 
+if len(DevIdent) == 0:
     print("Error not init")
     s.close()
     sys.exit(1)
@@ -60,7 +60,7 @@ for fnc in params:
     raw = sendReceive(iek61107.makePack('R1',fnc))
     val = iek61107.parseParamRaw(raw)
     print(fnc+":", val)
-    
+
 # close
 s.send( iek61107.closePacket() )
 s.close()

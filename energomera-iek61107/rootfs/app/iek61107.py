@@ -6,7 +6,7 @@ def makePack(mode, data):
     # Mode
     if len(mode) != 0:
         raw += b'\x01'+mode.encode('ascii')
-    
+
     # data
     if len(data) != 0:
         raw += b'\x02'+bytes(data, 'ascii')
@@ -40,7 +40,7 @@ def decodePack(raw):
         for b in chan:
             cs += b
 
-    if i <= len(raw) and raw[i] == 2:                
+    if i <= len(raw) and raw[i] == 2:
         if i != 0:
             cs += 2
         i += 1
@@ -78,6 +78,9 @@ def parseParamRaw(raw):
 
     return alist
 
+# /?!..
+def initPacket():
+    return b'\x2F\x3F\x21\x0D\x0A'
 
 # .050..
 def readByMultu():
