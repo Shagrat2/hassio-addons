@@ -4,6 +4,8 @@ import socket
 import serial
 import json
 import time
+import sys
+import os.path
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
@@ -22,47 +24,34 @@ def init_logger():
 
 class SDSSerial:
     def __init__(self):
+
         self._ser = serial.Serial()
         self._ser.port = Options["serial"]["port"]
-        self._ser.baudrate = Options["serial"]["baudrate"]
-        self._ser.bytesize = Options["serial"]["bytesize"]
-        self._ser.parity = Options["serial"]["parity"]
-        self._ser.stopbits = Options["serial"]["stopbits"]
+        self._ser.baudrate = 9600
+        self._ser.bytesize = serial.FIVEBITS
+        self._ser.parity = serial.PARITY_EVEN
+        self._ser.stopbits = serial.STOPBITS_ONE
+        self._ser.timeout = 0.5
 
-        self._ser.close()
         self._ser.open()
 
-        self._pending_recv = 0
-
-        # Set time out
-        self.set_timeout(5.0)
-        data = self._recv_raw(1)
-        self.set_timeout(None)
-        if not data:
-            logger.critical("no active packet at this serial port!")
-
-    def _recv_raw(self, count=1):
-        return self._ser.read(count)
-
-    def recv(self, count=1):
-        # serial은 pending count만 업데이트
-        self._pending_recv = max(self._pending_recv - count, 0)
-        return self._recv_raw(count)
+    def close(self):
+        self._soc.close()
 
     def send(self, a):
-        self._ser.write(a)
+        self._soc.write(a)
 
-    def set_pending_recv(self):
-        self._pending_recv = self._ser.in_waiting
+    def sendReceive(self, req):
+        self.send(req)
 
-    def check_pending_recv(self):
-        return self._pending_recv
+        data = bytearray()
+        while True:
+            try:
+                data += self._soc.recv(8)
+            except socket.error:
+                break
 
-    def check_in_waiting(self):
-        return self._ser.in_waiting
-
-    def set_timeout(self, a):
-        self._ser.timeout = a
+        return data
 
 
 class SDSSocket:
@@ -72,16 +61,10 @@ class SDSSocket:
 
         self._soc = socket.socket()
         self._soc.connect((addr, port))
+        self.set_timeout(0.5)
 
-        self._recv_buf = bytearray()
-        self._pending_recv = 0
-
-        # 소켓에 뭐가 떠다니는지 확인
-        self.set_timeout(5.0)
-        data = self._recv_raw(1)
-        self.set_timeout(None)
-        if not data:
-            logger.critical("no active packet at this socket!")
+    def close(self):
+        self._soc.close()
 
     def send(self, a):
         self._soc.sendall(a)
@@ -98,16 +81,13 @@ class SDSSocket:
 
         return data
 
-    def set_timeout(self, a):
-        self._soc.settimeout(a)
-
 def device_init():
     logger.info("start loop ...")
 
     # ident
     DevIdent = conn.sendReceive(iek61107.initPacket())
     if len(DevIdent) == 0:
-        DevIdent = sendReceive(iek61107.initPacket())
+        DevIdent = conn.sendReceive(iek61107.initPacket())
 
     if len(DevIdent) == 0:
         logger.critical("Error not init")
@@ -138,34 +118,37 @@ def device_loop():
 
 def init_option(argv):
 
+    global Options
+
     if len(argv) == 1:
         option_file = "./options_standalone.json"
     else:
         option_file = argv[1]
 
-    global Options
-
-    default_file = os.path.join(os.path.dirname(os.path.abspath(argv[0])), "config.json")
-
-    with open(default_file) as f:
-        config = json.load(f)
-        logger.info("addon version {}".format(config["version"]))
-        Options = config["options"]
-
     with open(option_file) as f:
-        Options2 = json.load(f)
+        Options = json.load(f)
 
-    for k, v in Options.items():
-        if type(v) is dict and k in Options2:
-            Options[k].update(Options2[k])
-            for k2 in Options[k].keys():
-                if k2 not in Options2[k].keys():
-                    logger.warning("no configuration value for '{}:{}'! try default value ({})...".format(k, k2, Options[k][k2]))
-        else:
-            if k not in Options2:
-                logger.warning("no configuration value for '{}'! try default value ({})...".format(k, Options[k]))
-            else:
-                Options[k] = Options2[k]
+    # default_file = os.path.join(os.path.dirname(os.path.abspath(argv[0])), "config.json")
+
+    # with open(default_file) as f:
+    #     config = json.load(f)
+    #     logger.info("addon version {}".format(config["version"]))
+    #     Options = config["options"]
+
+    # with open(option_file) as f:
+    #     Options2 = json.load(f)
+
+    # for k, v in Options.items():
+    #     if type(v) is dict and k in Options2:
+    #         Options[k].update(Options2[k])
+    #         for k2 in Options[k].keys():
+    #             if k2 not in Options2[k].keys():
+    #                 logger.warning("no configuration value for '{}:{}'! try default value ({})...".format(k, k2, Options[k][k2]))
+    #     else:
+    #         if k not in Options2:
+    #             logger.warning("no configuration value for '{}'! try default value ({})...".format(k, Options[k]))
+    #         else:
+    #             Options[k] = Options2[k]
 
 if __name__ == "__main__":
     global conn
@@ -187,6 +170,11 @@ if __name__ == "__main__":
         device_loop()
 
     except:
-        device_finish()
+        try:
+            device_finish()
+        except:
+            logger.exception("finish")
+
+        conn.close()
 
         logger.exception("addon finished!")

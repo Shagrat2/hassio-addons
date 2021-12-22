@@ -1,11 +1,7 @@
 {
-    "serial_mode": "socket",
+    "serial_mode": "serial",
     "serial": {
-      "port":  "/dev/ttyUSB0",
-      "baudrate": 9600,
-      "bytesize": 7,
-      "parity": "E",
-      "stopbits": 1
+      "port":  "/dev/ttyUSB0"
     },
     "socket": {
       "address": "10.9.2.2",
