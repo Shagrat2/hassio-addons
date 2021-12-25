@@ -7,20 +7,24 @@ import time
 import sys
 import os.path
 import logging
+import requests
+from requests.exceptions import HTTPError
 from logging.handlers import TimedRotatingFileHandler
 
-#import paho.mqtt.client as paho_mqtt
 import iek61107
 
 logger = logging.getLogger(__name__)
 
+
 def init_logger():
     logger.setLevel(logging.INFO)
 
-    formatter = logging.Formatter(fmt="%(asctime)s %(levelname)-8s %(message)s", datefmt="%H:%M:%S")
+    formatter = logging.Formatter(
+        fmt="%(asctime)s %(levelname)-8s %(message)s", datefmt="%H:%M:%S")
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+
 
 class SDSSerial:
     def __init__(self):
@@ -80,8 +84,15 @@ class SDSSocket:
 
         return data
 
+
 def device_init():
     logger.info("start loop ...")
+
+    global DevIdent
+    global SN
+
+    # close
+    conn.send(iek61107.closePacket())
 
     # ident
     DevIdent = conn.sendReceive(iek61107.initPacket())
@@ -92,29 +103,79 @@ def device_init():
         logger.critical("Error not init")
         return
 
-    logger.info("Init: "+DevIdent.decode('UTF-8'))
+    DevIdent = DevIdent.decode('UTF-8').rstrip('\r\n')
+    if DevIdent == "ERR11":
+        logger.critical("Error 11")
+        return
+
+    logger.info("Init: "+DevIdent)
 
     # mode
     raw = conn.sendReceive(iek61107.readByOne())
-    SN = iek61107.parseParamRaw(raw)
-    logger.info("SN: "+SN[0])
+    aSN = iek61107.parseParamRaw(raw)
+    SN = aSN[0]
+    logger.info("SN: "+SN)
+
+    return SN
+
 
 def device_finish():
+    conn.send(iek61107.closePacket())
     logger.info("finish ...")
-    conn.send( iek61107.closePacket() )
+
+
+def sendStates(eid, val, meas):
+    host = "172.30.32.1"
+    access_token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiI1NjY5YThlOTQxM2M0M2VkOTg0OGVhYTViMDc0MmM3OCIsImlhdCI6MTY0MDQyMzAyMSwiZXhwIjoxOTU1NzgzMDIxfQ.dN3DEBWmKPiJx_Of5JtF0Rs5MzqoqlK_ggczCKJRqQ8'
+
+    json_headers = {
+        "Content-type": "application/json",
+        "Authorization": "Bearer %s" % access_token
+    }
+    payload = {
+        "state": val,
+        "attributes": {
+            "unit_of_measurement": meas
+        }
+    }
+
+    try:
+        r = requests.post('http://'+host+':8123/api/states/sensor.' +
+                          eid, headers=json_headers, json=payload, verify=False)
+
+    except HTTPError as http_err:
+        print(f'HTTP error occurred: {http_err}')  # Python 3.6
+    except Exception as err:
+        print(f'Other error occurred: {err}')  # Python 3.6
+    else:
+        if r.status_code != 200:
+            print(f'Other error occurred: '+r.status_code+'\r'+r.text)
+
 
 def device_loop():
     while True:
         # Read sensors
-        params = ["ET0PE()", "VOLTA()", "CURRE()", "POWEP()"]
+        params = [
+            {"name": "ET0PE", "meas": "kw/h"},
+            {"name": "VOLTA", "meas": "V"},
+            {"name": "CURRE", "meas": "A"},
+            {"name": "POWEP", "meas": "kw"}
+        ]
 
-        for fnc in params:
-            raw = conn.sendReceive(iek61107.makePack('R1',fnc))
-            val = iek61107.parseParamRaw(raw)
-            logger.info(fnc+":"+'; '.join(val))
+        for itm in params:
+            raw = conn.sendReceive(iek61107.makePack('R1', itm["name"]+'()'))
+            arr = iek61107.parseParamRaw(raw)
+            for idx, val in enumerate(arr):
+                key = SN+'_'+itm["name"]
+                if len(arr) != 1:
+                    key = key+str(idx)
+
+                logger.info(key+":"+val+" "+itm["meas"])
+                sendStates(key, val, itm["meas"])
 
         # sleep
         time.sleep(5)
+
 
 def init_option(argv):
 
@@ -150,6 +211,7 @@ def init_option(argv):
     #         else:
     #             Options[k] = Options2[k]
 
+
 if __name__ == "__main__":
     global conn
 
@@ -164,7 +226,9 @@ if __name__ == "__main__":
         logger.info("initialize serial...")
         conn = SDSSerial()
 
-    device_init()
+    if device_init() == "":
+        conn.close()
+        sys.exit(1)
 
     try:
         device_loop()
