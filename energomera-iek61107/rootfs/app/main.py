@@ -1,4 +1,5 @@
 # first written by <ivan@jad.ru> since 2021-12-20
+# Protocol https://shop.energomera.kharkov.ua/DOC/CE303U/data_transf_descr_GOST-IES-61107-2011.pdf
 
 import socket
 import serial
@@ -14,6 +15,37 @@ from logging.handlers import TimedRotatingFileHandler
 import iek61107
 
 logger = logging.getLogger(__name__)
+
+# Read sensors
+Values = [
+    {   # Сумма
+        "name": "ET0PE",
+        "meas": "kWh",
+        "dclass": "energy",
+        "sclass": "total",
+        "last_reset": None,
+    },
+    {   # Действующее значение напряжения
+        "name": "VOLTA",
+        "meas": "V",
+        "dclass": "voltage",
+        "sclass": "measurement",
+    },
+    {   # Действующее значение тока
+        "name": "CURRE",
+        "meas": "A",
+        "dclass": "current",
+        "sclass": "measurement",
+    },
+    {   # Действующее значение потребления
+        "name": "POWEP",
+        "meas": "kW",
+        "dclass": "power",
+        "sclass": "measurement",
+    },
+    # {"name": "FREQU", "meas":"Hz", "dclass":"frequency", "sclass":"measurement"}, # Запрос частоты сети
+    # {"name": "COS_f", "meas":"",  "dclass":"", "sclass":"measurement"}, # Коэффициенты мощности суммарный и пофазно
+]
 
 
 def init_logger():
@@ -124,7 +156,7 @@ def device_finish():
     logger.info("finish ...")
 
 
-def sendStates(eid, val, meas):
+def sendStates(eid, val, valClass):
     host = "172.30.32.1"
     access_token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiI1NjY5YThlOTQxM2M0M2VkOTg0OGVhYTViMDc0MmM3OCIsImlhdCI6MTY0MDQyMzAyMSwiZXhwIjoxOTU1NzgzMDIxfQ.dN3DEBWmKPiJx_Of5JtF0Rs5MzqoqlK_ggczCKJRqQ8'
 
@@ -135,34 +167,30 @@ def sendStates(eid, val, meas):
     payload = {
         "state": val,
         "attributes": {
-            "unit_of_measurement": meas
-        }
+            "device_class": valClass["dclass"],
+            "state_class": valClass["sclass"],
+            "unit_of_measurement": valClass["meas"],
+        },
     }
+    if "last_reset" in valClass:
+        payload["last_reset"] = valClass["last_reset"]
 
     try:
         r = requests.post('http://'+host+':8123/api/states/sensor.' +
                           eid, headers=json_headers, json=payload, verify=False)
 
     except HTTPError as http_err:
-        print(f'HTTP error occurred: {http_err}')  # Python 3.6
+        logger.info(f'HTTP error occurred: {http_err}')  # Python 3.6
     except Exception as err:
-        print(f'Other error occurred: {err}')  # Python 3.6
+        logger.info(f'Other error occurred: {err}')  # Python 3.6
     else:
         if r.status_code != 200:
-            print(f'Other error occurred: '+r.status_code+'\r'+r.text)
+            logger.info(f'Other error occurred: '+str(r.status_code)+'\r'+r.text)
 
 
 def device_loop():
     while True:
-        # Read sensors
-        params = [
-            {"name": "ET0PE", "meas": "kw/h"},
-            {"name": "VOLTA", "meas": "V"},
-            {"name": "CURRE", "meas": "A"},
-            {"name": "POWEP", "meas": "kw"}
-        ]
-
-        for itm in params:
+        for itm in Values:
             raw = conn.sendReceive(iek61107.makePack('R1', itm["name"]+'()'))
             arr = iek61107.parseParamRaw(raw)
             for idx, val in enumerate(arr):
@@ -171,7 +199,7 @@ def device_loop():
                     key = key+str(idx)
 
                 logger.info(key+":"+val+" "+itm["meas"])
-                sendStates(key, val, itm["meas"])
+                sendStates(key, val, itm)
 
         # sleep
         time.sleep(5)
