@@ -185,7 +185,8 @@ def sendStates(eid, val, valClass):
         logger.info(f'Other error occurred: {err}')  # Python 3.6
     else:
         if r.status_code != 200:
-            logger.info(f'Other error occurred: '+str(r.status_code)+'\r'+r.text)
+            logger.info(f'Other error occurred: ' +
+                        str(r.status_code)+'\r'+r.text)
 
 
 def device_loop():
