@@ -9,12 +9,19 @@ import sys
 import os.path
 import logging
 import requests
+import logging.config
+import logging.handlers
+import configparser
 from requests.exceptions import HTTPError
 from logging.handlers import TimedRotatingFileHandler
 
+# Log Level
+CONF_LOGLEVEL = 'info' # debug, info, warn
 import iek61107
 
 logger = logging.getLogger(__name__)
+
+
 
 # Read sensors
 Values = [
@@ -43,9 +50,50 @@ Values = [
         "dclass": "power",
         "sclass": "measurement",
     },
+    {   # Действующее значение потребления пофазно
+        "name": "POWPP",
+        "meas": "kW",
+        "dclass": "power",
+        "sclass": "measurement",
+    },
     # {"name": "FREQU", "meas":"Hz", "dclass":"frequency", "sclass":"measurement"}, # Запрос частоты сети
     # {"name": "COS_f", "meas":"",  "dclass":"", "sclass":"measurement"}, # Коэффициенты мощности суммарный и пофазно
 ]
+
+def init_option(argv):
+
+    global Options
+
+    if len(argv) == 1:
+        option_file = "/data/options.json"
+    else:
+        option_file = argv[1]
+
+    with open(option_file) as f:
+        Options = json.load(f)
+
+    # default_file = os.path.join(os.path.dirname(os.path.abspath(argv[0])), "config.json")
+
+    # with open(default_file) as f:
+    #     config = json.load(f)
+    #     logger.info("addon version {}".format(config["version"]))
+    #     Options = config["options"]
+
+    # with open(option_file) as f:
+    #     Options2 = json.load(f)
+
+    # for k, v in Options.items():
+    #     if type(v) is dict and k in Options2:
+    #         Options[k].update(Options2[k])
+    #         for k2 in Options[k].keys():
+    #             if k2 not in Options2[k].keys():
+    #                 logger.warning("no configuration value for '{}:{}'! try default value ({})...".format(k, k2, Options[k][k2]))
+    #     else:
+    #         if k not in Options2:
+    #             logger.warning("no configuration value for '{}'! try default value ({})...".format(k, Options[k]))
+    #         else:
+    #             Options[k] = Options2[k]
+
 
 
 def init_logger():
@@ -56,7 +104,6 @@ def init_logger():
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-
 
 class SDSSerial:
     def __init__(self):
@@ -148,6 +195,9 @@ def device_init():
     SN = aSN[0]
     logger.info("SN: "+SN)
 
+
+
+
     return SN
 
 
@@ -157,8 +207,8 @@ def device_finish():
 
 
 def sendStates(eid, val, valClass):
-    host = "172.30.32.1"
-    access_token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiI1NjY5YThlOTQxM2M0M2VkOTg0OGVhYTViMDc0MmM3OCIsImlhdCI6MTY0MDQyMzAyMSwiZXhwIjoxOTU1NzgzMDIxfQ.dN3DEBWmKPiJx_Of5JtF0Rs5MzqoqlK_ggczCKJRqQ8'
+    host = Options["host_ip"]
+    access_token = Options["auth_key"]
 
     json_headers = {
         "Content-type": "application/json",
@@ -166,6 +216,8 @@ def sendStates(eid, val, valClass):
     }
     payload = {
         "state": val,
+        "unique_id": 'sensor.' + eid,
+        "entity_id": 'sensor.' + eid,
         "attributes": {
             "device_class": valClass["dclass"],
             "state_class": valClass["sclass"],
@@ -203,42 +255,11 @@ def device_loop():
                 sendStates(key, val, itm)
 
         # sleep
-        time.sleep(5)
+        time_sleep = Options["time_sleep"]
+        time.sleep(10)
 
 
-def init_option(argv):
 
-    global Options
-
-    if len(argv) == 1:
-        option_file = "./options_standalone.json"
-    else:
-        option_file = argv[1]
-
-    with open(option_file) as f:
-        Options = json.load(f)
-
-    # default_file = os.path.join(os.path.dirname(os.path.abspath(argv[0])), "config.json")
-
-    # with open(default_file) as f:
-    #     config = json.load(f)
-    #     logger.info("addon version {}".format(config["version"]))
-    #     Options = config["options"]
-
-    # with open(option_file) as f:
-    #     Options2 = json.load(f)
-
-    # for k, v in Options.items():
-    #     if type(v) is dict and k in Options2:
-    #         Options[k].update(Options2[k])
-    #         for k2 in Options[k].keys():
-    #             if k2 not in Options2[k].keys():
-    #                 logger.warning("no configuration value for '{}:{}'! try default value ({})...".format(k, k2, Options[k][k2]))
-    #     else:
-    #         if k not in Options2:
-    #             logger.warning("no configuration value for '{}'! try default value ({})...".format(k, Options[k]))
-    #         else:
-    #             Options[k] = Options2[k]
 
 
 if __name__ == "__main__":
