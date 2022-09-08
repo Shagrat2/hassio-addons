@@ -14,6 +14,9 @@ website of Home Assistant, and use the following URL:
 https://github.com/shagrat2/hassio-addons
 ```
 
+## Thanks to contributor 
+[Allkorolev](https://github.com/Allkorolev)
+
 [//]: # "ADDONLIST_START"
 
 ## &#10003; Energimera iek61107

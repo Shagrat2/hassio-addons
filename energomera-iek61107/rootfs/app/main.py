@@ -195,9 +195,6 @@ def device_init():
     SN = aSN[0]
     logger.info("SN: "+SN)
 
-
-
-
     return SN
 
 
@@ -209,9 +206,6 @@ def device_finish():
 def sendStates(eid, val, valClass):
     host = Options["host_ip"]
     access_token = Options["auth_key"]
-
-    logger.info("HOST: "+host)
-    logger.info("TOKEN: |"+access_token+"|")
 
     json_headers = {
         "Content-type": "application/json",
@@ -258,11 +252,8 @@ def device_loop():
                 sendStates(key, val, itm)
 
         # sleep
-        time_sleep = Options["time_sleep"]
-        time.sleep(10)
-
-
-
+        time_sleep = Options["time_sleep"]        
+        time.sleep(time_sleep)
 
 
 if __name__ == "__main__":
