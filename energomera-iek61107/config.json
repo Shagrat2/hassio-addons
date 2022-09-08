@@ -37,7 +37,10 @@
     "socket": {
       "address": "192.168.1.1",
       "port": 8899
-    }
+    },
+    "host_ip": "HOST_IP",
+    "auth_key": "LONG_TOKEN",
+    "time_sleep": 5
   },
   "schema": {
     "serial_mode": "list(serial|socket)",
@@ -51,6 +54,9 @@
     "socket": {
       "address": "str?",
       "port": "int?"
-    }
+    },
+    "host_ip": "str?",
+    "auth_key": "str?",
+    "time_sleep": "int?"
   }
 }

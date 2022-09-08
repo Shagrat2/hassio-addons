@@ -210,6 +210,9 @@ def sendStates(eid, val, valClass):
     host = Options["host_ip"]
     access_token = Options["auth_key"]
 
+    logger.info("HOST: "+host)
+    logger.info("TOKEN: |"+access_token+"|")
+
     json_headers = {
         "Content-type": "application/json",
         "Authorization": "Bearer %s" % access_token

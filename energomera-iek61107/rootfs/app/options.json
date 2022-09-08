@@ -7,7 +7,7 @@
     "address": "10.9.2.2",
     "port": 8899
   },
-  "host_ip": "10.10.0.3",
-  "auth_key": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJjNmMxM2UxYTIwMmQ0MjJhODE3YTdkYzA3ZDhmZmNkMCIsImlhdCI6MTY2MDU2NDcxOCwiZXhwIjoxOTc1OTI0NzE4fQ.ZAbOOkKrGLDzdQtHzP7bElgcn_VYj9tEjDtF-uK5uyI",
+  "host_ip": "HOST_IP",
+  "auth_key": "LONG_TOKEN",
   "time_sleep": 5
 }
