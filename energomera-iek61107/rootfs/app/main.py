@@ -16,12 +16,12 @@ from requests.exceptions import HTTPError
 from logging.handlers import TimedRotatingFileHandler
 
 # Log Level
-CONF_LOGLEVEL = 'info' # debug, info, warn
+#CONF_LOGLEVEL = 'info' # debug, info, warn
+RECONNECT_TIME = 10 # 10 sec - before reconnect
+
 import iek61107
 
 logger = logging.getLogger(__name__)
-
-
 
 # Read sensors
 Values = [
@@ -72,8 +72,8 @@ def init_option(argv):
     with open(option_file) as f:
         Options = json.load(f)
 
-def init_logger():
-    logger.setLevel(logging.INFO)
+def init_logger(logLevel):
+    logger.setLevel(logLevel)
 
     formatter = logging.Formatter(
         fmt="%(asctime)s %(levelname)-8s %(message)s", datefmt="%H:%M:%S")
@@ -96,7 +96,8 @@ class SDSSerial:
         try:
             self._ser.open()
             return True
-        except:
+        except Exception as err:
+            logger.error("Error open socket: "+err)
             return False
 
     def close(self):
@@ -132,7 +133,8 @@ class SDSSocket:
         try:
             self._soc.connect((addr, port))
             return True
-        except:
+        except Exception as err:
+            logger.error("Error open socket: "+err)
             return False
 
     def close(self):
@@ -162,41 +164,50 @@ def device_init():
     global DevIdent
     global SN
 
-    # close
-    conn.send(iek61107.closePacket())
+    try:
+        # close
+        conn.send(iek61107.closePacket())
 
-    # ident
-    DevIdent = conn.sendReceive(iek61107.initPacket())
-    if len(DevIdent) == 0:
+        # ident
         DevIdent = conn.sendReceive(iek61107.initPacket())
+        if len(DevIdent) == 0:
+            DevIdent = conn.sendReceive(iek61107.initPacket())
 
-    if len(DevIdent) == 0:
-        logger.critical("Error not init")
-        return
+        if len(DevIdent) == 0:
+            logger.critical("Error not init")
+            return
 
-    DevIdent = DevIdent.decode('UTF-8').rstrip('\r\n')
-    if DevIdent == "ERR11":
-        logger.critical("Error 11")
-        return
+        DevIdent = DevIdent.decode('UTF-8').rstrip('\r\n')
+        if DevIdent == "ERR11":
+            logger.critical("Error 11")
+            return
 
-    logger.info("Init: "+DevIdent)
+        logger.info("Init: "+DevIdent)
 
-    # mode
-    raw = conn.sendReceive(iek61107.readByOne())
-    aSN = iek61107.parseParamRaw(raw)
-    SN = aSN[0]
-    logger.info("SN: "+SN)
+        # mode
+        raw = conn.sendReceive(iek61107.readByOne())
+        aSN = iek61107.parseParamRaw(raw)
+        SN = aSN[0]
+        logger.info("SN: "+SN)
 
-    return SN
+        return SN
 
+    except Exception as err:
+        logger.error("Error init: "+err)
+        return ""
+       
 
 def device_finish():
-    logger.info("finish ...")
+    logger.debug("finish ...")
     try:
         conn.send(iek61107.closePacket())
         return True
 
-    except serial.serialutil.PortNotOpenError:
+    except serial.serialutil.PortNotOpenError as err:        
+        return False
+
+    except:
+        logger.error("Error send device finish: ", err)
         return False
 
 
@@ -226,17 +237,20 @@ def sendStates(eid, val, valClass):
                           eid, headers=json_headers, json=payload, verify=False)
 
     except HTTPError as http_err:
-        logger.info(f'HTTP error occurred: {http_err}')  # Python 3.6
+        logger.error(f'HTTP error occurred: {http_err}')  # Python 3.6
     except Exception as err:
-        logger.info(f'Other error occurred: {err}')  # Python 3.6
+        logger.error(f'Other error occurred: {err}')  # Python 3.6
     else:
         if r.status_code != 200:
-            logger.info(f'Other error occurred: ' +
+            logger.error(f'Other error occurred: ' +
                         str(r.status_code)+'\r'+r.text)
 
 
 def device_loop():
     while True:
+
+        logger.debug("=== Read data")
+
         for itm in Values:
             raw = conn.sendReceive(iek61107.makePack('R1', itm["name"]+'()'))
             if not raw:
@@ -248,7 +262,7 @@ def device_loop():
                 if len(arr) != 1:
                     key = key+str(idx)
 
-                logger.info(key+":"+val+" "+itm["meas"])
+                logger.debug(key+":"+val+" "+itm["meas"])
                 sendStates(key, val, itm)
 
         # sleep
@@ -262,7 +276,12 @@ if __name__ == "__main__":
     global conn
 
     # configuration
-    init_logger()
+
+    logLevel = logging.INFO
+    if Options["debug"]:
+        logLevel = logging.DEBUG
+    init_logger(logLevel)
+
     init_option(sys.argv)
 
     if Options["serial_mode"] == "socket":
@@ -272,38 +291,37 @@ if __name__ == "__main__":
         logger.info("initialize serial...")
         conn = SDSSerial()
 
-    try:
+
+    while True:
+
+        # Close last        
+        device_finish()
+        conn.close()
+
+        # Open connection
+        logger.debug("Open connection ...")
+        if not conn.open():
+            time.sleep(RECONNECT_TIME)
+            continue
+
+        # Init
+        logger.debug("Init ...")
+        if device_init() == "":
+            time.sleep(RECONNECT_TIME)
+            continue
+
+        # Loop info
+        logger.debug("Read data ...")
+        if device_loop():
+            break # Nornal exit
+
         # Reconnect
-        while True:
-
-            # Close last
-            logger.info("Close opened ...")
-            device_finish()
-            conn.close()
-
-            # Open connection
-            logger.info("Open connection ...")
-            if not conn.open():
-                time.sleep(10)
-                continue
-
-            # Init
-            logger.info("Init ...")
-            if device_init() == "":
-                time.sleep(10)
-                continue
-
-            if not device_loop():
-                time.sleep(10)
-                continue
-
-    except:        
-        logger.exception("Except loop")
-
+        time.sleep(RECONNECT_TIME)
+        
     # End session    
     device_finish()
 
     # Close device
     conn.close()
 
-    logger.exception("Addon STOP")
+    logger.info("Programm STOP")

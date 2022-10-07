@@ -40,7 +40,8 @@
     },
     "host_ip": "HOST_IP",
     "auth_key": "LONG_TOKEN",
-    "time_sleep": 5
+    "time_sleep": 5,
+    "debug": false
   },
   "schema": {
     "serial_mode": "list(serial|socket)",
@@ -57,6 +58,7 @@
     },
     "host_ip": "str?",
     "auth_key": "str?",
-    "time_sleep": "int?"
+    "time_sleep": "int?",
+    "debug": "bool?"
   }
 }

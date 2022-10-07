@@ -9,5 +9,6 @@
   },
   "host_ip": "HOST_IP",
   "auth_key": "LONG_TOKEN",
-  "time_sleep": 5
+  "time_sleep": 5,
+  "debug": true
 }
