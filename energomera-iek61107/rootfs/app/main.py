@@ -276,21 +276,21 @@ if __name__ == "__main__":
     global conn
 
     # configuration
+    init_option(sys.argv)
 
+    # log
     logLevel = logging.INFO
     if Options["debug"]:
         logLevel = logging.DEBUG
     init_logger(logLevel)
 
-    init_option(sys.argv)
-
+    #  mode
     if Options["serial_mode"] == "socket":
         logger.info("initialize socket...")
         conn = SDSSocket()
     else:
         logger.info("initialize serial...")
         conn = SDSSerial()
-
 
     while True:
 
