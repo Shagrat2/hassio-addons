@@ -91,11 +91,16 @@ class SDSSerial:
         self._ser.parity = serial.PARITY_EVEN
         self._ser.stopbits = serial.STOPBITS_ONE
         self._ser.timeout = 0.5
-
+        
+    def open(self):
         self._ser.open()
 
     def close(self):
-        self._ser.close()
+        try:
+            self._ser.close()
+            return True
+        except:
+            return False
 
     def send(self, a):
         self._ser.write(a)
@@ -114,15 +119,24 @@ class SDSSerial:
 
 class SDSSocket:
     def __init__(self):
+        self._soc = socket.socket()
+        self.set_timeout(0.5)        
+
+    def open(self):
         addr = Options["socket"]["address"]
         port = Options["socket"]["port"]
-
-        self._soc = socket.socket()
-        self._soc.connect((addr, port))
-        self.set_timeout(0.5)
+        try:
+            self._soc.connect((addr, port))
+            return True
+        except:
+            return False
 
     def close(self):
-        self._soc.close()
+        try:
+            self._soc.close()
+            return True
+        except:
+            return False
 
     def send(self, a):
         self._soc.sendall(a)
@@ -231,7 +245,7 @@ def device_loop():
                 sendStates(key, val, itm)
 
         # sleep
-        time_sleep = Options["time_sleep"]        
+        time_sleep = Options["time_sleep"]
         time.sleep(time_sleep)
 
     return True
@@ -260,13 +274,21 @@ if __name__ == "__main__":
             except:
                 logger.exception("Err #1")
 
+            # Close last
             conn.close()
 
-            # connect
-            if device_init() == "":                
+            # Open connection
+            if not conn.open():
+                time.sleep(10)
+                continue
+
+            # Init
+            if device_init() == "":
+                time.sleep(10)
                 continue
 
             if not device_loop():
+                time.sleep(10)
                 continue
 
     except:        
