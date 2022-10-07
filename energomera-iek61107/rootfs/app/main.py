@@ -93,7 +93,11 @@ class SDSSerial:
         self._ser.timeout = 0.5
         
     def open(self):
-        self._ser.open()
+        try:
+            self._ser.open()
+            return True
+        except:
+            return False
 
     def close(self):
         try:
