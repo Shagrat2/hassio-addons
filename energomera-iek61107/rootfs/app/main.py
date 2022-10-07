@@ -189,8 +189,11 @@ def device_init():
 
 
 def device_finish():
-    conn.send(iek61107.closePacket())
     logger.info("finish ...")
+    try:
+        conn.send(iek61107.closePacket())
+    except:
+        logger.exception("device_finish error ...")    
 
 
 def sendStates(eid, val, valClass):
@@ -269,12 +272,8 @@ if __name__ == "__main__":
         # Reconnect
         while True:
 
-            try:
-                device_finish()
-            except:
-                logger.exception("Err #1")
-
             # Close last
+            device_finish()
             conn.close()
 
             # Open connection
@@ -294,11 +293,8 @@ if __name__ == "__main__":
     except:        
         logger.exception("Except loop")
 
-    # End session
-    try:
-        device_finish()
-    except:
-        logger.exception("Err #2")
+    # End session    
+    device_finish()    
 
     # Close device
     conn.close()
