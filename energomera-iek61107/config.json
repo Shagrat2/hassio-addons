@@ -1,6 +1,6 @@
 {
   "name": "Energomera iek61107",
-  "version": "dev",
+  "version": "1.1.5",
   "slug": "energomera-iek61107",
   "description": "Reading readings from the Energomera meter using the iek61107 protocol",
   "startup": "once",
