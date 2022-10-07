@@ -72,30 +72,6 @@ def init_option(argv):
     with open(option_file) as f:
         Options = json.load(f)
 
-    # default_file = os.path.join(os.path.dirname(os.path.abspath(argv[0])), "config.json")
-
-    # with open(default_file) as f:
-    #     config = json.load(f)
-    #     logger.info("addon version {}".format(config["version"]))
-    #     Options = config["options"]
-
-    # with open(option_file) as f:
-    #     Options2 = json.load(f)
-
-    # for k, v in Options.items():
-    #     if type(v) is dict and k in Options2:
-    #         Options[k].update(Options2[k])
-    #         for k2 in Options[k].keys():
-    #             if k2 not in Options2[k].keys():
-    #                 logger.warning("no configuration value for '{}:{}'! try default value ({})...".format(k, k2, Options[k][k2]))
-    #     else:
-    #         if k not in Options2:
-    #             logger.warning("no configuration value for '{}'! try default value ({})...".format(k, Options[k]))
-    #         else:
-    #             Options[k] = Options2[k]
-
-
-
 def init_logger():
     logger.setLevel(logging.INFO)
 
@@ -242,6 +218,9 @@ def device_loop():
     while True:
         for itm in Values:
             raw = conn.sendReceive(iek61107.makePack('R1', itm["name"]+'()'))
+            if not raw:
+                return False
+
             arr = iek61107.parseParamRaw(raw)
             for idx, val in enumerate(arr):
                 key = SN+'_'+itm["name"]
@@ -254,6 +233,8 @@ def device_loop():
         # sleep
         time_sleep = Options["time_sleep"]        
         time.sleep(time_sleep)
+
+    return True
 
 
 if __name__ == "__main__":
@@ -270,19 +251,34 @@ if __name__ == "__main__":
         logger.info("initialize serial...")
         conn = SDSSerial()
 
-    if device_init() == "":
-        conn.close()
-        sys.exit(1)
-
     try:
-        device_loop()
+        # Reconnect
+        while True:
 
+            try:
+                device_finish()
+            except:
+                logger.exception("Err #1")
+
+            conn.close()
+
+            # connect
+            if device_init() == "":                
+                continue
+
+            if not device_loop():
+                continue
+
+    except:        
+        logger.exception("Except loop")
+
+    # End session
+    try:
+        device_finish()
     except:
-        try:
-            device_finish()
-        except:
-            logger.exception("finish")
+        logger.exception("Err #2")
 
-        conn.close()
+    # Close device
+    conn.close()
 
-        logger.exception("addon finished!")
+    logger.exception("Addon STOP")
