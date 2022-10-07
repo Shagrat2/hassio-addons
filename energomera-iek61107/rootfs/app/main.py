@@ -155,8 +155,6 @@ class SDSSocket:
 
 
 def device_init():
-    logger.info("start loop ...")
-
     global DevIdent
     global SN
 
@@ -192,8 +190,10 @@ def device_finish():
     logger.info("finish ...")
     try:
         conn.send(iek61107.closePacket())
-    except:
-        logger.exception("device_finish error ...")    
+        return True
+
+    except serial.serialutil.PortNotOpenError:
+        return False
 
 
 def sendStates(eid, val, valClass):
@@ -273,15 +273,18 @@ if __name__ == "__main__":
         while True:
 
             # Close last
+            logger.info("Close opened ...")
             device_finish()
             conn.close()
 
             # Open connection
+            logger.info("Open connection ...")
             if not conn.open():
                 time.sleep(10)
                 continue
 
             # Init
+            logger.info("Init ...")
             if device_init() == "":
                 time.sleep(10)
                 continue
@@ -294,7 +297,7 @@ if __name__ == "__main__":
         logger.exception("Except loop")
 
     # End session    
-    device_finish()    
+    device_finish()
 
     # Close device
     conn.close()
