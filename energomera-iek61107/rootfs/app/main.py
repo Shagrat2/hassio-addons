@@ -55,10 +55,20 @@ Values = [
         "meas": "kW",
         "dclass": "power",
         "sclass": "measurement",
-    },
-    # {"name": "FREQU", "meas":"Hz", "dclass":"frequency", "sclass":"measurement"}, # Запрос частоты сети
-    # {"name": "COS_f", "meas":"",  "dclass":"", "sclass":"measurement"}, # Коэффициенты мощности суммарный и пофазно
+    },  # Запрос частоты сети
+    {   "name": "FREQU", 
+        "meas":"Hz", 
+        "dclass":"frequency", 
+        "sclass":"measurement",
+    },  # Коэффициенты мощности суммарный и пофазно
+    {   "name": "COS_f", 
+        "meas":"",  
+        "dclass":"", 
+        "sclass":"measurement",
+    }, 
 ]
+
+IgnoreList = []
 
 def init_option(argv):
 
@@ -175,12 +185,12 @@ def device_init():
 
         if len(DevIdent) == 0:
             logger.critical("Error not init")
-            return
+            return ""
 
         DevIdent = DevIdent.decode('UTF-8').rstrip('\r\n')
         if DevIdent == "ERR11":
             logger.critical("Error 11")
-            return
+            return ""
 
         logger.info("Init: "+DevIdent)
 
@@ -241,7 +251,7 @@ def sendStates(eid, val, valClass):
     except Exception as err:
         logger.error(f'Other error occurred: {err}')  # Python 3.6
     else:
-        if r.status_code != 200:
+        if not (r.status_code == 200 or r.status_code == 201):
             logger.error(f'Other error occurred: ' +
                         str(r.status_code)+'\r'+r.text)
 
@@ -252,12 +262,25 @@ def device_loop():
         logger.debug("=== Read data")
 
         for itm in Values:
+            # Skip not suported
+            if itm["name"] in IgnoreList:
+                continue
+
+            # Read fron device
             raw = conn.sendReceive(iek61107.makePack('R1', itm["name"]+'()'))
             if not raw:
                 return False
 
             arr = iek61107.parseParamRaw(raw)
             for idx, val in enumerate(arr):
+
+                if val == "ERR12":
+
+                    logger.info("Parameter not supported: "+itm["name"])
+
+                    IgnoreList.append(itm["name"])
+                    continue
+
                 key = SN+'_'+itm["name"]
                 if len(arr) != 1:
                     key = key+str(idx)
